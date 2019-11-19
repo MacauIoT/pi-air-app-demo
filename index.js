@@ -45,6 +45,10 @@ fetch('https://macauiot.com/api/v1/air/online', {
     console.log(json)
     logger.info(JSON.stringify(json))
   })
+  .catch(error => {
+    console.log(error)
+    logger.info(error)
+  })
 
 // setup sds011
 const sensor = new SDS011Client(config.sds011Port || '/dev/ttyUSB0')
@@ -98,7 +102,22 @@ gps.on('data', async data => {
         long: data.lon
       }
 
-      console.log(body)
+      try {
+        await fetch('https://macauiot.com/api/v1/air/create', {
+          method: 'post',
+          body: JSON.stringify(body),
+          headers: { 'Content-Type': 'application/json' }
+        })
+          .then(res => res.json())
+          .then(json => {
+            console.log(json)
+            logger.info(JSON.stringify(json))
+          })
+      } catch (error) {
+        console.log(error)
+        logger.info(error)
+      }
+
       last = Date.now()
     } else {
       // log error
