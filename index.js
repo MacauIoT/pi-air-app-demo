@@ -52,11 +52,11 @@ sensor.on('reading', r => {
   logger.info(JSON.stringify(r));
 });
 
-var SerialPort = require('serialport');
-var port = new SerialPort.SerialPort('/dev/ttyACM0', { // change path
-  baudrate: 9600,
-  parser: SerialPort.parsers.readline('\r\n')
-});
+// var SerialPort = require('serialport');
+// var port = new SerialPort.SerialPort('/dev/ttyACM0', { // change path
+//   baudrate: 9600,
+//   parser: SerialPort.parsers.readline('\r\n')
+// });
 
 var GPS = require('gps');
 var gps = new GPS;

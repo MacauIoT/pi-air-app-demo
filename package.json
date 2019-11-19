@@ -5,7 +5,6 @@
     "my-local-ip": "^1.0.0",
     "node-fetch": "^2.6.0",
     "sds011-client": "^1.0.1",
-    "serialport": "^8.0.5",
     "simple-node-logger": "^18.12.23",
     "winston": "^3.2.1",
     "winston-daily-rotate-file": "^4.2.1"
