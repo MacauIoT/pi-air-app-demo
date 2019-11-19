@@ -126,11 +126,11 @@ gps.on('data', async data => {
     }
   }
 })
-parser.on('data', data => {
-  try {
-    gps.update(data)
-  } catch (error) {
-    console.log(error)
-    logger.info(error)
-  }
-})
+// parser.on('data', data => {
+//   try {
+//     gps.update(data)
+//   } catch (error) {
+//     console.log(error)
+//     logger.info(error)
+//   }
+// })
