@@ -3,7 +3,7 @@ const fs = require('fs-extra')
 const path = require('path')
 
 // read deviceId
-let config
+let config = {}
 if (fs.existsSync('/boot/config.json')) {
   config = fs.readJsonSync('/boot/config.json')
 }
