@@ -76,6 +76,7 @@ const parser = port.pipe(new SerialPortParser())
 
 let last = null
 gps.on('data', async data => {
+  console.log(data, gps.state)
   if (data.type === 'GGA') {
     if (data.quality != null) {
       // log the gps value
@@ -126,11 +127,11 @@ gps.on('data', async data => {
     }
   }
 })
-// parser.on('data', data => {
-//   try {
-//     gps.update(data)
-//   } catch (error) {
-//     console.log(error)
-//     logger.info(error)
-//   }
-// })
+parser.on('data', data => {
+  try {
+    gps.updatePartial(data)
+  } catch (error) {
+    console.log(error)
+    logger.info(error)
+  }
+})
