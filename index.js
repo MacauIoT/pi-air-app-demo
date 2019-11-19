@@ -1,84 +1,117 @@
-const fetch = require('node-fetch');
+const fetch = require('node-fetch')
 const fs = require('fs-extra')
-const path = require('path')
-const SDS011Client = require("sds011-client");
-var winston = require('winston');
-require('winston-daily-rotate-file');
+const SDS011Client = require('sds011-client')
+const SerialPort = require('serialport')
+const SerialPortParser = require('@serialport/parser-readline')
+const GPS = require('gps')
+const winston = require('winston')
+require('winston-daily-rotate-file')
 
-var transport = new (winston.transports.DailyRotateFile)({
+// setup logging
+const transport = new (winston.transports.DailyRotateFile)({
   filename: 'app-%DATE%.log',
   datePattern: 'YYYY-MM-DD-HH',
   zippedArchive: true,
   maxSize: '20m',
   maxFiles: '14d'
-});
-
-var logger = winston.createLogger({
+})
+const logger = winston.createLogger({
   transports: [
     transport
   ]
-});
+})
 
-// read deviceId
+// read config.json
 let config = {}
-if (fs.existsSync('/boot/config.json')) {
-  config = fs.readJsonSync('/boot/config.json')
+try {
+  if (fs.existsSync('/boot/config.json')) {
+    config = fs.readJsonSync('/boot/config.json')
+  }
+} catch (error) {
+  logger.info(error)
 }
 
-const body = {
-  ip: process.env.IP || 'not_defined',
-  deviceId: config.deviceId || 'not_defined'
-}
- 
+// online api call
 fetch('https://macauiot.com/api/v1/air/online', {
   method: 'post',
-  body:    JSON.stringify(body),
-  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    ip: process.env.IP || 'not_defined',
+    deviceId: config.deviceId || 'not_defined'
+  }),
+  headers: { 'Content-Type': 'application/json' }
 })
   .then(res => res.json())
   .then(json => {
     console.log(json)
-    logger.info(JSON.stringify(json));
-  });
+    logger.info(JSON.stringify(json))
+  })
 
-const sensor = new SDS011Client(config.sds011Port || "/dev/ttyUSB0");
+// setup sds011
+const sensor = new SDS011Client(config.sds011Port || '/dev/ttyUSB0')
 Promise
   .all([sensor.setReportingMode('active'), sensor.setWorkingPeriod(0)])
   .then(() => {
-  });
+  })
 
+let sds011Data = null
+let sds011UpdatedAt = null
 sensor.on('reading', r => {
+  // log the sensor value
   console.log(r)
-  logger.info(JSON.stringify(r));
-});
+  logger.info(JSON.stringify(r))
 
-const SerialPort = require("serialport");
-const SerialPortParser = require("@serialport/parser-readline");
-const GPS = require("gps");
+  // update the state
+  sds011Data = r
+  sds011UpdatedAt = Date.now()
+})
 
-const port = new SerialPort("/dev/ttyACM0", { baudRate: 9600 });
-const gps = new GPS();
-const parser = port.pipe(new SerialPortParser());
+// setup gps
+const port = new SerialPort(config.gpsPort || '/dev/ttyACM0', { baudRate: 9600 })
+const gps = new GPS()
+const parser = port.pipe(new SerialPortParser())
 
-function getAddressInformation(latitude, longitude) {
-  logger.info(JSON.stringify({ latitude, longitude }));
-}
-gps.on("data", async data => {
-  if(data.type == "GGA") {
-      if(data.quality != null) {
-          let address = await getAddressInformation(data.lat, data.lon);
-          console.log(" [" + data.lat + ", " + data.lon + "]");
-          logger.info(" [" + data.lat + ", " + data.lon + "]");
-      } else {
-          console.log("no gps fix available");
-          logger.info("no gps fix available");
+let last = null
+gps.on('data', async data => {
+  if (data.type === 'GGA') {
+    if (data.quality != null) {
+      // log the gps value
+      console.log('[' + data.lat + ', ' + data.lon + ']')
+      logger.info('[' + data.lat + ', ' + data.lon + ']')
+
+      // value exists?
+      if (!sds011Data) return
+      if (!sds011UpdatedAt) return
+      if (!data.lat || !data.lon) return
+
+      // check the time
+      if (Math.abs(Date.now() - sds011UpdatedAt) > 2000) return
+
+      // check last fetch api date
+      if (Math.abs(Date.now() - last) < 5000) return
+
+      // prepare the body
+      const body = {
+        'pm2.5': sds011Data.pm2p5,
+        pm10: sds011Data.pm10,
+        deviceId: config.deviceId || 'not_defined',
+        lat: data.lat,
+        long: data.lon
       }
+
+      console.log(body)
+      last = Date.now()
+    } else {
+      // log error
+      console.log('no gps fix available')
+      logger.info('no gps fix available')
+    }
   }
-});
-parser.on("data", data => {
+})
+parser.on('data', data => {
   try {
-      gps.update(data);
-  } catch (e) {
-      throw e;
+    gps.update(data)
+  } catch (error) {
+    console.log(error)
+    logger.info(error)
   }
-});
+})
