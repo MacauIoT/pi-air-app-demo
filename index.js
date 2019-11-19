@@ -67,8 +67,8 @@ gps.on("data", async data => {
   if(data.type == "GGA") {
       if(data.quality != null) {
           let address = await getAddressInformation(data.lat, data.lon);
-          console.log(address.Label + " [" + data.lat + ", " + data.lon + "]");
-          logger.info(address.Label + " [" + data.lat + ", " + data.lon + "]");
+          console.log(" [" + data.lat + ", " + data.lon + "]");
+          logger.info(" [" + data.lat + ", " + data.lon + "]");
       } else {
           console.log("no gps fix available");
           logger.info("no gps fix available");
