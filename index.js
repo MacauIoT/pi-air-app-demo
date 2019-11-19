@@ -1,6 +1,7 @@
 const fetch = require('node-fetch');
 const fs = require('fs-extra')
 const path = require('path')
+const SDS011Client = require("sds011-client");
 
 // read deviceId
 let config = {}
@@ -20,3 +21,13 @@ fetch('https://macauiot.com/api/v1/air/online', {
 })
   .then(res => res.json())
   .then(json => console.log(json));
+
+const sensor = new SDS011Client(config.sds011Port || "/dev/ttyUSB0");
+Promise
+  .all([sensor.setReportingMode('active'), sensor.setWorkingPeriod(0)])
+  .then(() => {
+  });
+
+sensor.on('reading', r => {
+  console.log(r)
+});

@@ -2,6 +2,7 @@
   "dependencies": {
     "fs-extra": "^8.1.0",
     "my-local-ip": "^1.0.0",
-    "node-fetch": "^2.6.0"
+    "node-fetch": "^2.6.0",
+    "sds011-client": "^1.0.1"
   }
 }
