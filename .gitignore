@@ -1,2 +1,4 @@
 node_modules
 ip.txt
+log/*.log
+*.log
