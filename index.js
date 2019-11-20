@@ -101,7 +101,7 @@ gps.on('data', _.throttle(
       if (Math.abs(Date.now() - sds011UpdatedAt) > 2000) return
 
       // check last fetch api date
-      if (Math.abs(Date.now() - last) < 5000) return
+      if (Math.abs(Date.now() - last) < 3000) return
 
       // prepare the body
       const body = {
@@ -131,7 +131,7 @@ gps.on('data', _.throttle(
       last = Date.now()
     }
   },
-  100
+  500
 ))
 parser.on('data', function (data) {
   gps.update(data)
