@@ -6,7 +6,6 @@ const winston = require('winston')
 require('winston-daily-rotate-file')
 const SerialPort = require('serialport')
 const parsers = SerialPort.parsers
-const _ = require('lodash')
 
 // setup logging
 const transport = new (winston.transports.DailyRotateFile)({
@@ -82,9 +81,9 @@ port.pipe(parser)
 const gps = new GPS()
 
 let last = null
-gps.on('data', _.throttle(
+gps.on('data',
   async data => {
-    if (data.lat && data.lon) {
+    if (data.lat && data.lon && data.type === 'GGA') {
       const lat = data.lat
       const long = data.lon
 
@@ -130,9 +129,8 @@ gps.on('data', _.throttle(
 
       last = Date.now()
     }
-  },
-  1000
-))
+  }
+)
 parser.on('data', function (data) {
   gps.update(data)
 })
