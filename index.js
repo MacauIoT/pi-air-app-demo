@@ -6,6 +6,7 @@ const winston = require('winston')
 require('winston-daily-rotate-file')
 const SerialPort = require('serialport')
 const parsers = SerialPort.parsers
+const _ = require('lodash')
 
 // setup logging
 const transport = new (winston.transports.DailyRotateFile)({
@@ -81,54 +82,57 @@ port.pipe(parser)
 const gps = new GPS()
 
 let last = null
-gps.on('data', async data => {
-  if (data.lat && data.lon) {
-    const lat = data.lat
-    const long = data.lon
+gps.on('data', _.throttle(
+  async data => {
+    if (data.lat && data.lon) {
+      const lat = data.lat
+      const long = data.lon
 
-    // log the gps value
-    console.log('[' + lat + ', ' + long + ']')
-    logger.info('[' + lat + ', ' + long + ']')
+      // log the gps value
+      console.log('[' + lat + ', ' + long + ']')
+      logger.info('[' + lat + ', ' + long + ']')
 
-    // value exists?
-    if (!sds011Data) return
-    if (!sds011UpdatedAt) return
-    if (!data.lat || !data.lon) return
+      // value exists?
+      if (!sds011Data) return
+      if (!sds011UpdatedAt) return
+      if (!data.lat || !data.lon) return
 
-    // check the time
-    if (Math.abs(Date.now() - sds011UpdatedAt) > 2000) return
+      // check the time
+      if (Math.abs(Date.now() - sds011UpdatedAt) > 2000) return
 
-    // check last fetch api date
-    if (Math.abs(Date.now() - last) < 5000) return
+      // check last fetch api date
+      if (Math.abs(Date.now() - last) < 5000) return
 
-    // prepare the body
-    const body = {
-      'pm2.5': sds011Data.pm2p5,
-      pm10: sds011Data.pm10,
-      deviceId: config.deviceId || 'not_defined',
-      lat: data.lat,
-      long: data.lon
-    }
+      // prepare the body
+      const body = {
+        'pm2.5': sds011Data.pm2p5,
+        pm10: sds011Data.pm10,
+        deviceId: config.deviceId || 'not_defined',
+        lat: data.lat,
+        long: data.lon
+      }
 
-    try {
-      await fetch('https://macauiot.com/api/v1/air/create', {
-        method: 'post',
-        body: JSON.stringify(body),
-        headers: { 'Content-Type': 'application/json' }
-      })
-        .then(res => res.json())
-        .then(json => {
-          console.log(json)
-          logger.info(JSON.stringify(json))
+      try {
+        await fetch('https://macauiot.com/api/v1/air/create', {
+          method: 'post',
+          body: JSON.stringify(body),
+          headers: { 'Content-Type': 'application/json' }
         })
-    } catch (error) {
-      console.log(error)
-      logger.info(error)
-    }
+          .then(res => res.json())
+          .then(json => {
+            console.log(json)
+            logger.info(JSON.stringify(json))
+          })
+      } catch (error) {
+        console.log(error)
+        logger.info(error)
+      }
 
-    last = Date.now()
-  }
-})
+      last = Date.now()
+    }
+  },
+  100
+))
 parser.on('data', function (data) {
   gps.update(data)
 })
