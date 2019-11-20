@@ -131,7 +131,7 @@ gps.on('data', _.throttle(
       last = Date.now()
     }
   },
-  500
+  1000
 ))
 parser.on('data', function (data) {
   gps.update(data)
