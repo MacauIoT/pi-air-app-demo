@@ -111,6 +111,8 @@ gps.on('data', async data => {
       cov: filter.P.elements,
       pos: filter.x.elements
     }
+
+    console.log(gps.state)
   }
   // if (data.type === 'GGA') {
   //   if (data.quality != null) {
