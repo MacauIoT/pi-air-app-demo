@@ -1,11 +1,15 @@
+/* global $V, $M */
+
 const fetch = require('node-fetch')
 const fs = require('fs-extra')
 const SDS011Client = require('sds011-client')
-const SerialPort = require('serialport')
-const SerialPortParser = require('@serialport/parser-readline')
 const GPS = require('gps')
 const winston = require('winston')
 require('winston-daily-rotate-file')
+const SerialPort = require('serialport')
+const parsers = SerialPort.parsers
+const Sylvester = require('sylvester')
+const Kalman = require('kalman').KF
 
 // setup logging
 const transport = new (winston.transports.DailyRotateFile)({
@@ -70,19 +74,44 @@ sensor.on('reading', r => {
 })
 
 // setup gps
-const port = new SerialPort(
-  config.gpsPort || '/dev/ttyACM0',
-  {
-    baudRate: 9600,
-    parser: require('@serialport/parser-readline')
-  }
-)
+const parser = new parsers.Readline({
+  delimiter: '\r\n'
+})
+const port = new SerialPort(config.gpsPort || '/dev/ttyACM0', {
+  baudRate: 9600
+})
+port.pipe(parser)
 const gps = new GPS()
-// const parser = port.pipe(new SerialPortParser())
+// Simple Kalman Filter set up
+var A = Sylvester.Matrix.I(2)
+var B = Sylvester.Matrix.Zero(2, 2)
+var H = Sylvester.Matrix.I(2)
+var C = Sylvester.Matrix.I(2)
+var Q = Sylvester.Matrix.I(2).multiply(1e-11)
+var R = Sylvester.Matrix.I(2).multiply(0.00001)
+// Measure
+var u = $V([0, 0])
+var filter = new Kalman($V([0, 0]), $M([[1, 0], [0, 1]]))
 
 const last = null
 gps.on('data', async data => {
-  console.log(data.type, data.lat, data.lon)
+  if (data.lat && data.lon) {
+    filter.update({
+      A: A,
+      B: B,
+      C: C,
+      H: H,
+      R: R,
+      Q: Q,
+      u: u,
+      y: $V([data.lat, data.lon])
+    })
+
+    gps.state.position = {
+      cov: filter.P.elements,
+      pos: filter.x.elements
+    }
+  }
   // if (data.type === 'GGA') {
   //   if (data.quality != null) {
   //     // log the gps value
@@ -133,6 +162,6 @@ gps.on('data', async data => {
   //   }
   // }
 })
-port.on('data', data => {
-  gps.updatePartial(data)
+parser.on('data', function (data) {
+  gps.update(data)
 })
