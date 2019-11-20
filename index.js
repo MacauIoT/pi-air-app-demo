@@ -81,56 +81,77 @@ port.pipe(parser)
 const gps = new GPS()
 
 let last = null
-gps.on('data',
-  async data => {
-    if (data.lat && data.lon && data.type === 'GGA') {
-      const lat = data.lat
-      const long = data.lon
+let processing = false
+const processData = async data => {
+  if (data.lat && data.lon) {
+    const lat = data.lat
+    const long = data.lon
 
-      // log the gps value
-      console.log('[' + lat + ', ' + long + ']')
-      logger.info('[' + lat + ', ' + long + ']')
+    // log the gps value
+    console.log('[' + lat + ', ' + long + ']')
+    logger.info('[' + lat + ', ' + long + ']')
 
-      // value exists?
-      if (!sds011Data) return
-      if (!sds011UpdatedAt) return
-      if (!data.lat || !data.lon) return
-
-      // check the time
-      if (Math.abs(Date.now() - sds011UpdatedAt) > 2000) return
-
-      // check last fetch api date
-      if (Math.abs(Date.now() - last) < 3000) return
-
-      // prepare the body
-      const body = {
-        'pm2.5': sds011Data.pm2p5,
-        pm10: sds011Data.pm10,
-        deviceId: config.deviceId || 'not_defined',
-        lat: data.lat,
-        long: data.lon
-      }
-
-      try {
-        await fetch('https://macauiot.com/api/v1/air/create', {
-          method: 'post',
-          body: JSON.stringify(body),
-          headers: { 'Content-Type': 'application/json' }
-        })
-          .then(res => res.json())
-          .then(json => {
-            console.log(json)
-            logger.info(JSON.stringify(json))
-          })
-      } catch (error) {
-        console.log(error)
-        logger.info(error)
-      }
-
-      last = Date.now()
+    // value exists?
+    if (!sds011Data) {
+      processing = false
+      return
     }
+    if (!sds011UpdatedAt) {
+      processing = false
+      return
+    }
+    if (!data.lat || !data.lon) {
+      processing = false
+      return
+    }
+
+    // check the time
+    if (Math.abs(Date.now() - sds011UpdatedAt) > 2000) {
+      processing = false
+      return
+    }
+
+    // check last fetch api date
+    if (Math.abs(Date.now() - last) < 3000) {
+      processing = false
+      return
+    }
+
+    // prepare the body
+    const body = {
+      'pm2.5': sds011Data.pm2p5,
+      pm10: sds011Data.pm10,
+      deviceId: config.deviceId || 'not_defined',
+      lat: data.lat,
+      long: data.lon
+    }
+
+    try {
+      await fetch('https://macauiot.com/api/v1/air/create', {
+        method: 'post',
+        body: JSON.stringify(body),
+        headers: { 'Content-Type': 'application/json' }
+      })
+        .then(res => res.json())
+        .then(json => {
+          console.log(json)
+          logger.info(JSON.stringify(json))
+        })
+    } catch (error) {
+      console.log(error)
+      logger.info(error)
+    }
+
+    last = Date.now()
+    processing = false
   }
-)
+}
+gps.on('data', data => {
+  if (!processing) {
+    processing = true
+    processData(data)
+  }
+})
 parser.on('data', function (data) {
   gps.update(data)
 })
