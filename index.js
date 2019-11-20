@@ -1,5 +1,3 @@
-/* global $V, $M */
-
 const fetch = require('node-fetch')
 const fs = require('fs-extra')
 const SDS011Client = require('sds011-client')
@@ -8,8 +6,6 @@ const winston = require('winston')
 require('winston-daily-rotate-file')
 const SerialPort = require('serialport')
 const parsers = SerialPort.parsers
-const Sylvester = require('sylvester')
-const Kalman = require('kalman').KF
 
 // setup logging
 const transport = new (winston.transports.DailyRotateFile)({
@@ -82,38 +78,12 @@ const port = new SerialPort(config.gpsPort || '/dev/ttyACM0', {
 })
 port.pipe(parser)
 const gps = new GPS()
-// Simple Kalman Filter set up
-var A = Sylvester.Matrix.I(2)
-var B = Sylvester.Matrix.Zero(2, 2)
-var H = Sylvester.Matrix.I(2)
-var C = Sylvester.Matrix.I(2)
-var Q = Sylvester.Matrix.I(2).multiply(1e-11)
-var R = Sylvester.Matrix.I(2).multiply(0.00001)
-// Measure
-var u = $V([0, 0])
-var filter = new Kalman($V([0, 0]), $M([[1, 0], [0, 1]]))
 
 let last = null
 gps.on('data', async data => {
   if (data.lat && data.lon) {
-    filter.update({
-      A: A,
-      B: B,
-      C: C,
-      H: H,
-      R: R,
-      Q: Q,
-      u: u,
-      y: $V([data.lat, data.lon])
-    })
-
-    gps.state.position = {
-      cov: filter.P.elements,
-      pos: filter.x.elements
-    }
-
-    const lat = gps.state.position.pos[0]
-    const long = gps.state.position.pos[1]
+    const lat = data.lat
+    const long = data.lon
 
     // log the gps value
     console.log('[' + lat + ', ' + long + ']')
