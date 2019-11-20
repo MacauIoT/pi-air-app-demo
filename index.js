@@ -82,7 +82,7 @@ const gps = new GPS()
 
 const last = null
 gps.on('data', async data => {
-  console.log(data, gps.state)
+  console.log(data.type, data.lat, data.lon)
   // if (data.type === 'GGA') {
   //   if (data.quality != null) {
   //     // log the gps value
