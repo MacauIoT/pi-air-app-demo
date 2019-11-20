@@ -144,6 +144,8 @@ const processData = async data => {
 
     last = Date.now()
     processing = false
+  } else {
+    processing = true
   }
 }
 gps.on('data', data => {
