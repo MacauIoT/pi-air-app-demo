@@ -70,68 +70,69 @@ sensor.on('reading', r => {
 })
 
 // setup gps
-const port = new SerialPort(config.gpsPort || '/dev/ttyACM0', { baudRate: 9600 })
+const port = new SerialPort(
+  config.gpsPort || '/dev/ttyACM0',
+  {
+    baudRate: 9600,
+    parser: require('@serialport/parser-readline')
+  }
+)
 const gps = new GPS()
-const parser = port.pipe(new SerialPortParser())
+// const parser = port.pipe(new SerialPortParser())
 
-let last = null
+const last = null
 gps.on('data', async data => {
   console.log(data, gps.state)
-  if (data.type === 'GGA') {
-    if (data.quality != null) {
-      // log the gps value
-      console.log('[' + data.lat + ', ' + data.lon + ']')
-      logger.info('[' + data.lat + ', ' + data.lon + ']')
+  // if (data.type === 'GGA') {
+  //   if (data.quality != null) {
+  //     // log the gps value
+  //     console.log('[' + data.lat + ', ' + data.lon + ']')
+  //     logger.info('[' + data.lat + ', ' + data.lon + ']')
 
-      // value exists?
-      if (!sds011Data) return
-      if (!sds011UpdatedAt) return
-      if (!data.lat || !data.lon) return
+  //     // value exists?
+  //     if (!sds011Data) return
+  //     if (!sds011UpdatedAt) return
+  //     if (!data.lat || !data.lon) return
 
-      // check the time
-      if (Math.abs(Date.now() - sds011UpdatedAt) > 2000) return
+  //     // check the time
+  //     if (Math.abs(Date.now() - sds011UpdatedAt) > 2000) return
 
-      // check last fetch api date
-      if (Math.abs(Date.now() - last) < 5000) return
+  //     // check last fetch api date
+  //     if (Math.abs(Date.now() - last) < 5000) return
 
-      // prepare the body
-      const body = {
-        'pm2.5': sds011Data.pm2p5,
-        pm10: sds011Data.pm10,
-        deviceId: config.deviceId || 'not_defined',
-        lat: data.lat,
-        long: data.lon
-      }
+  //     // prepare the body
+  //     const body = {
+  //       'pm2.5': sds011Data.pm2p5,
+  //       pm10: sds011Data.pm10,
+  //       deviceId: config.deviceId || 'not_defined',
+  //       lat: data.lat,
+  //       long: data.lon
+  //     }
 
-      try {
-        await fetch('https://macauiot.com/api/v1/air/create', {
-          method: 'post',
-          body: JSON.stringify(body),
-          headers: { 'Content-Type': 'application/json' }
-        })
-          .then(res => res.json())
-          .then(json => {
-            console.log(json)
-            logger.info(JSON.stringify(json))
-          })
-      } catch (error) {
-        console.log(error)
-        logger.info(error)
-      }
+  //     try {
+  //       await fetch('https://macauiot.com/api/v1/air/create', {
+  //         method: 'post',
+  //         body: JSON.stringify(body),
+  //         headers: { 'Content-Type': 'application/json' }
+  //       })
+  //         .then(res => res.json())
+  //         .then(json => {
+  //           console.log(json)
+  //           logger.info(JSON.stringify(json))
+  //         })
+  //     } catch (error) {
+  //       console.log(error)
+  //       logger.info(error)
+  //     }
 
-      last = Date.now()
-    } else {
-      // log error
-      console.log('no gps fix available')
-      logger.info('no gps fix available')
-    }
-  }
+  //     last = Date.now()
+  //   } else {
+  //     // log error
+  //     console.log('no gps fix available')
+  //     logger.info('no gps fix available')
+  //   }
+  // }
 })
-parser.on('data', data => {
-  try {
-    gps.updatePartial(data)
-  } catch (error) {
-    console.log(error)
-    logger.info(error)
-  }
+port.on('data', data => {
+  gps.updatePartial(data)
 })
