@@ -51,10 +51,11 @@ fetch('https://macauiot.com/api/v1/air/online', {
   })
 
 // setup sds011
+
 const sensor = new SDS011Client(config.sds011Port || '/dev/ttyUSB0')
-Promise
-  .all([sensor.setReportingMode('active'), sensor.setWorkingPeriod(0)])
-  .then(() => {
+Promise.all([sensor.setReportingMode('active'), sensor.setWorkingPeriod(0)])
+  .catch(error => {
+    console.log(error)
   })
 
 let sds011Data = null
