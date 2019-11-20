@@ -93,7 +93,7 @@ var R = Sylvester.Matrix.I(2).multiply(0.00001)
 var u = $V([0, 0])
 var filter = new Kalman($V([0, 0]), $M([[1, 0], [0, 1]]))
 
-const last = null
+let last = null
 gps.on('data', async data => {
   if (data.lat && data.lon) {
     filter.update({
@@ -112,57 +112,51 @@ gps.on('data', async data => {
       pos: filter.x.elements
     }
 
-    console.log(gps.state)
+    const lat = gps.state.position.pos[0]
+    const long = gps.state.position.pos[1]
+
+    // log the gps value
+    console.log('[' + lat + ', ' + long + ']')
+    logger.info('[' + lat + ', ' + long + ']')
+
+    // value exists?
+    if (!sds011Data) return
+    if (!sds011UpdatedAt) return
+    if (!data.lat || !data.lon) return
+
+    // check the time
+    if (Math.abs(Date.now() - sds011UpdatedAt) > 2000) return
+
+    // check last fetch api date
+    if (Math.abs(Date.now() - last) < 5000) return
+
+    // prepare the body
+    const body = {
+      'pm2.5': sds011Data.pm2p5,
+      pm10: sds011Data.pm10,
+      deviceId: config.deviceId || 'not_defined',
+      lat: data.lat,
+      long: data.lon
+    }
+
+    try {
+      await fetch('https://macauiot.com/api/v1/air/create', {
+        method: 'post',
+        body: JSON.stringify(body),
+        headers: { 'Content-Type': 'application/json' }
+      })
+        .then(res => res.json())
+        .then(json => {
+          console.log(json)
+          logger.info(JSON.stringify(json))
+        })
+    } catch (error) {
+      console.log(error)
+      logger.info(error)
+    }
+
+    last = Date.now()
   }
-  // if (data.type === 'GGA') {
-  //   if (data.quality != null) {
-  //     // log the gps value
-  //     console.log('[' + data.lat + ', ' + data.lon + ']')
-  //     logger.info('[' + data.lat + ', ' + data.lon + ']')
-
-  //     // value exists?
-  //     if (!sds011Data) return
-  //     if (!sds011UpdatedAt) return
-  //     if (!data.lat || !data.lon) return
-
-  //     // check the time
-  //     if (Math.abs(Date.now() - sds011UpdatedAt) > 2000) return
-
-  //     // check last fetch api date
-  //     if (Math.abs(Date.now() - last) < 5000) return
-
-  //     // prepare the body
-  //     const body = {
-  //       'pm2.5': sds011Data.pm2p5,
-  //       pm10: sds011Data.pm10,
-  //       deviceId: config.deviceId || 'not_defined',
-  //       lat: data.lat,
-  //       long: data.lon
-  //     }
-
-  //     try {
-  //       await fetch('https://macauiot.com/api/v1/air/create', {
-  //         method: 'post',
-  //         body: JSON.stringify(body),
-  //         headers: { 'Content-Type': 'application/json' }
-  //       })
-  //         .then(res => res.json())
-  //         .then(json => {
-  //           console.log(json)
-  //           logger.info(JSON.stringify(json))
-  //         })
-  //     } catch (error) {
-  //       console.log(error)
-  //       logger.info(error)
-  //     }
-
-  //     last = Date.now()
-  //   } else {
-  //     // log error
-  //     console.log('no gps fix available')
-  //     logger.info('no gps fix available')
-  //   }
-  // }
 })
 parser.on('data', function (data) {
   gps.update(data)
